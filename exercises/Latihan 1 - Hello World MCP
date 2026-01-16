@@ -1,0 +1,91 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "mcp-hello",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                0
+            ],
+            "id": "3dfde19d-aaf3-4570-9f4b-be5b3cf1ed75",
+            "name": "Webhook",
+            "webhookId": "108561e3-a509-4c3f-a128-35fccb62e50b"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Step 1: Ambil data dari request\nconst inputData = $input.first().json;\n\n// Step 2: Extract nama dari body (handling berbagai format)\n// Request bisa datang sebagai:\n// - { body: {name: \"Ahmad\" } } -> dari Postman/curl\n// - { name: \"Ahmad\"} -> langsung\nconst body = inputData.body || inputData;\nconst name = body.name || \"Guest\";\n\n// Step 3: Validasi - nama tidak boleh kosong\nif (!name || name.trim() === \"\") {\n  throw new Error(\"Name parameters is required\");\n}\n\n// Step 4: Buat response dalam format MCP standar\nconst mcpResponse = {\n  // Status keseluruhan\n  success: true,\n\n  // Data Utama\n  message: `Hello, ${name}! 👋 MCP is working perfectly.`,\n\n  // Metadata (informasi tambahan)\n  metadata: {\n    tool: \"mcp-hello\",\n    version: \"1.0.0\",\n    processedAt: new Date().toISOString(),\n    inputReceived: {\n      name: name\n    }\n  },\n\n  // tips (untuk learning purpose)\n  tips: [\n    \"Ini adalah response standar MCP\",\n    \"Field 'success' menandakan apakah request berhasil\",\n    \"Field 'metadata' berisi informasi tentang processing\"\n  ]\n};\n\n// step 5: return response\nreturn [{\n  json: mcpResponse\n}]"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                208,
+                0
+            ],
+            "id": "25dc546f-cfbd-4c43-806a-4a07f78ff7b9",
+            "name": "Process Request"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ $json }}",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "X-MCP-Version",
+                                "value": "1.0"
+                            },
+                            {
+                                "name": "X-Powered-By",
+                                "value": "n8n-mcp-bridge"
+                            }
+                        ]
+                    }
+                }
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                416,
+                0
+            ],
+            "id": "90245456-8875-490a-bdf8-5c6f09e23e20",
+            "name": "Respond to Webhook"
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Process Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process Request": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "bd4060de13254a5798c3554ea819ee09bcda05466b5063c44d443ee15fb3a2a4"
+    }
+}
