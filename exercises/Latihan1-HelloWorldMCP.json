@@ -1,0 +1,152 @@
+{
+    "name": "Latihan 1 - Hello World MCP",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "mcp-hello",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "d2a3e9f1-1234-4567-8901-abcdef123456",
+            "name": "🔌 Webhook Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                240,
+                300
+            ],
+            "webhookId": "mcp-hello-endpoint",
+            "notes": "## Entry Point MCP\n\nMenerima POST request dengan body:\n```json\n{\n  \"name\": \"Ahmad\"\n}\n```\n\n**Test URL**: /webhook-test/mcp-hello\n**Production URL**: /webhook/mcp-hello"
+        },
+        {
+            "parameters": {
+                "jsCode": "// ============================================\n// LATIHAN 1: Hello World MCP - Process Request\n// ============================================\n\n// Step 1: Ambil data dari request\nconst inputData = $input.first().json;\n\n// Step 2: Extract nama dari body\n// Request bisa datang sebagai:\n// - { body: { name: \"Ahmad\" } }  → dari Postman/curl\n// - { name: \"Ahmad\" }            → langsung\nconst body = inputData.body || inputData;\nconst name = body.name || \"Guest\";\n\n// Step 3: Validasi - nama tidak boleh kosong\nif (name.trim() === \"\") {\n  // Tetap return response, tapi dengan default\n  // Di production, bisa throw error\n}\n\n// Step 4: Buat response dalam format MCP standar\nconst mcpResponse = {\n  // Status keseluruhan\n  success: true,\n  \n  // Data utama\n  message: `Hello, ${name}! 👋 MCP is working perfectly.`,\n  \n  // Metadata (informasi tambahan)\n  metadata: {\n    tool: \"mcp-hello\",\n    version: \"1.0.0\",\n    processedAt: new Date().toISOString(),\n    inputReceived: {\n      name: name\n    }\n  },\n  \n  // Tips untuk learning\n  tips: [\n    \"Ini adalah response standar MCP\",\n    \"Field 'success' menandakan apakah request berhasil\",\n    \"Field 'metadata' berisi informasi tentang processing\",\n    \"Selamat! Kamu sudah berhasil membuat MCP endpoint pertama 🎉\"\n  ]\n};\n\n// Step 5: Return response\nreturn [{\n  json: mcpResponse\n}];"
+            },
+            "id": "f3b4c5d6-2345-5678-9012-bcdefg234567",
+            "name": "⚙️ Process Request",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                480,
+                300
+            ],
+            "notes": "## Processing Logic\n\n1. Extract `name` dari request body\n2. Handle jika name kosong → default \"Guest\"\n3. Format response ke standar MCP:\n   - success: boolean\n   - message: string\n   - metadata: object\n   - tips: array"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ $json }}",
+                "options": {
+                    "responseCode": 200,
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "X-MCP-Version",
+                                "value": "1.0"
+                            },
+                            {
+                                "name": "X-Powered-By",
+                                "value": "n8n-mcp-bridge"
+                            },
+                            {
+                                "name": "X-Exercise",
+                                "value": "Latihan-1-HelloWorld"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "a1b2c3d4-3456-6789-0123-cdefgh345678",
+            "name": "📤 Return Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                720,
+                300
+            ],
+            "notes": "## Response Configuration\n\n- **Content-Type**: application/json\n- **Custom Headers**:\n  - X-MCP-Version: 1.0\n  - X-Powered-By: n8n-mcp-bridge\n\nBody diambil langsung dari node sebelumnya."
+        },
+        {
+            "parameters": {
+                "content": "# 🎯 Latihan 1: Hello World MCP\n\n## Objective\nBuat endpoint sederhana yang menerima nama dan mengembalikan greeting dalam format MCP standar.\n\n## How to Test\n\n### 1. Start Test Mode\nKlik \"Test workflow\" di atas\n\n### 2. Send Request (PowerShell)\n```powershell\n$body = @{ name = \"Ahmad\" } | ConvertTo-Json\nInvoke-RestMethod -Uri \"http://localhost:5678/webhook-test/mcp-hello\" -Method POST -Body $body -ContentType \"application/json\"\n```\n\n### 3. Expected Response\n```json\n{\n  \"success\": true,\n  \"message\": \"Hello, Ahmad! 👋 MCP is working perfectly.\",\n  \"metadata\": {\n    \"tool\": \"mcp-hello\",\n    \"version\": \"1.0.0\"\n  }\n}\n```\n\n## ✅ Success Criteria\n- [ ] Response status 200\n- [ ] Response berisi \"success\": true\n- [ ] Nama dari input muncul di message",
+                "height": 636,
+                "width": 400,
+                "color": 4
+            },
+            "id": "sticky-note-1",
+            "name": "Sticky Note",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                -180,
+                140
+            ]
+        },
+        {
+            "parameters": {
+                "content": "## 📊 MCP Response Format\n\n```\n{\n  \"success\": boolean,\n  \"message\": string,\n  \"metadata\": {\n    \"tool\": string,\n    \"version\": string,\n    \"processedAt\": ISO timestamp\n  },\n  \"data\": any (optional)\n}\n```\n\nFormat ini adalah standar yang akan kita pakai di semua latihan MCP.\n\n---\n\n**Architect Note:**\nSelalu sertakan metadata untuk:\n- Debugging\n- Audit logging\n- Performance tracking",
+                "height": 354,
+                "width": 320,
+                "color": 6
+            },
+            "id": "sticky-note-2",
+            "name": "Sticky Note1",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                820,
+                140
+            ]
+        }
+    ],
+    "connections": {
+        "🔌 Webhook Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "⚙️ Process Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⚙️ Process Request": {
+            "main": [
+                [
+                    {
+                        "node": "📤 Return Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [
+        {
+            "name": "Exercise",
+            "createdAt": "2026-01-16T00:00:00.000Z",
+            "updatedAt": "2026-01-16T00:00:00.000Z"
+        },
+        {
+            "name": "Phase1-MCP",
+            "createdAt": "2026-01-16T00:00:00.000Z",
+            "updatedAt": "2026-01-16T00:00:00.000Z"
+        },
+        {
+            "name": "Beginner",
+            "createdAt": "2026-01-16T00:00:00.000Z",
+            "updatedAt": "2026-01-16T00:00:00.000Z"
+        }
+    ],
+    "triggerCount": 0,
+    "updatedAt": "2026-01-16T13:00:00.000Z",
+    "versionId": "1.0.0"
+}
