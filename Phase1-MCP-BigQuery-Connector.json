@@ -1,0 +1,228 @@
+{
+    "name": "Phase 1 - MCP BigQuery Connector",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "mcp-query",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "🔌 MCP Endpoint",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                240,
+                300
+            ],
+            "webhookId": "mcp-bigquery-endpoint",
+            "notes": "TRIGGER: Endpoint untuk menerima query dari AI Agent.\n\nBody request:\n{\n  \"query\": \"SELECT * FROM sales LIMIT 10\",\n  \"context\": \"Analisis penjualan Q4\"\n}"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Validate incoming request\nconst body = $input.first().json.body;\n\nif (!body.query) {\n  throw new Error('Query parameter is required');\n}\n\n// Clean and prepare the query\nconst cleanQuery = body.query.trim();\n\n// Security check - prevent dangerous queries\nconst forbidden = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'UPDATE', 'INSERT'];\nconst upperQuery = cleanQuery.toUpperCase();\n\nfor (const word of forbidden) {\n  if (upperQuery.includes(word)) {\n    throw new Error(`Forbidden operation: ${word} is not allowed`);\n  }\n}\n\nreturn [{\n  json: {\n    query: cleanQuery,\n    context: body.context || 'No context provided',\n    timestamp: new Date().toISOString(),\n    validated: true\n  }\n}];"
+            },
+            "id": "validate-query",
+            "name": "🛡️ Validate Query",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                300
+            ],
+            "notes": "SECURITY LAYER: Validasi query sebelum eksekusi.\n\n1. Cek query tidak kosong\n2. Block operasi berbahaya (DROP, DELETE, dll)\n3. Prepare clean query untuk BigQuery"
+        },
+        {
+            "parameters": {
+                "projectId": {
+                    "__rl": true,
+                    "value": "={{ $env.GCP_PROJECT_ID }}",
+                    "mode": "id"
+                },
+                "sqlQuery": "={{ $json.query }}",
+                "options": {
+                    "location": "asia-southeast2",
+                    "maximumBytesBilled": "1073741824"
+                }
+            },
+            "id": "bigquery-execute",
+            "name": "📊 BigQuery Execute",
+            "type": "n8n-nodes-base.googleBigQuery",
+            "typeVersion": 2,
+            "position": [
+                680,
+                300
+            ],
+            "credentials": {
+                "googleBigQueryOAuth2Api": {
+                    "id": "YOUR_CREDENTIAL_ID",
+                    "name": "Google BigQuery"
+                }
+            },
+            "notes": "EXECUTOR: Jalankan query di BigQuery.\n\nKonfigurasi:\n- Location: Jakarta (asia-southeast2)\n- Max bytes: 1GB (cost control)\n- Gunakan service account dengan read-only access"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Transform BigQuery results for AI consumption\nconst results = $input.all();\nconst query = $('🛡️ Validate Query').first().json;\n\n// Calculate basic stats\nconst rowCount = results.length;\nconst columns = rowCount > 0 ? Object.keys(results[0].json) : [];\n\n// Format response for AI Agent\nconst response = {\n  success: true,\n  metadata: {\n    query: query.query,\n    context: query.context,\n    executed_at: query.timestamp,\n    row_count: rowCount,\n    columns: columns\n  },\n  data: results.map(r => r.json),\n  summary: `Query returned ${rowCount} rows with ${columns.length} columns: ${columns.join(', ')}`\n};\n\nreturn [{ json: response }];"
+            },
+            "id": "transform-response",
+            "name": "🔄 Transform Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                900,
+                300
+            ],
+            "notes": "TRANSFORMER: Format hasil untuk AI Agent.\n\nOutput struktur:\n- success: boolean\n- metadata: info query\n- data: array hasil\n- summary: ringkasan untuk LLM"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ $json }}",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "X-MCP-Version",
+                                "value": "1.0"
+                            },
+                            {
+                                "name": "X-Query-Timestamp",
+                                "value": "={{ $json.metadata.executed_at }}"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "respond-success",
+            "name": "✅ Return Results",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ],
+            "notes": "RESPONSE: Kirim hasil ke AI Agent.\n\nHeaders:\n- X-MCP-Version: 1.0\n- X-Query-Timestamp: waktu eksekusi"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\n  \"success\": false,\n  \"error\": {\n    \"message\": \"{{ $json.message }}\",\n    \"code\": \"QUERY_ERROR\"\n  },\n  \"metadata\": {\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
+                "options": {
+                    "responseCode": 400
+                }
+            },
+            "id": "respond-error",
+            "name": "❌ Error Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                900,
+                480
+            ],
+            "notes": "ERROR HANDLER: Return error message ke Agent.\n\nHTTP Status: 400 Bad Request"
+        },
+        {
+            "parameters": {
+                "channel": "#mcp-logs",
+                "text": "=🔍 *MCP Query Executed*\n\n*Context:* {{ $('🛡️ Validate Query').first().json.context }}\n*Query:* ```{{ $('🛡️ Validate Query').first().json.query }}```\n*Rows:* {{ $json.metadata.row_count }}\n*Time:* {{ $json.metadata.executed_at }}",
+                "otherOptions": {}
+            },
+            "id": "log-to-slack",
+            "name": "📝 Log to Slack",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2,
+            "position": [
+                1120,
+                480
+            ],
+            "credentials": {
+                "slackApi": {
+                    "id": "YOUR_SLACK_CREDENTIAL",
+                    "name": "Slack"
+                }
+            },
+            "notes": "OBSERVABILITY: Log setiap query ke Slack.\n\nBerguna untuk:\n- Audit trail\n- Debugging\n- Cost monitoring"
+        },
+        {
+            "parameters": {},
+            "id": "start-note",
+            "name": "📋 Workflow Info",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                220,
+                100
+            ],
+            "notes": "# Phase 1: MCP BigQuery Connector\n\n## Tujuan\nMembuat bridge antara AI Agent (Antigravity) dan BigQuery via MCP protocol.\n\n## Flow\n1. Agent kirim query via webhook\n2. Validasi & security check\n3. Execute di BigQuery\n4. Transform hasil untuk AI\n5. Return response + logging\n\n## Setup Required\n1. GCP Project dengan BigQuery enabled\n2. Service Account dengan roles/bigquery.dataViewer\n3. n8n credentials untuk BigQuery\n4. (Optional) Slack webhook untuk logging"
+        }
+    ],
+    "connections": {
+        "🔌 MCP Endpoint": {
+            "main": [
+                [
+                    {
+                        "node": "🛡️ Validate Query",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🛡️ Validate Query": {
+            "main": [
+                [
+                    {
+                        "node": "📊 BigQuery Execute",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📊 BigQuery Execute": {
+            "main": [
+                [
+                    {
+                        "node": "🔄 Transform Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔄 Transform Response": {
+            "main": [
+                [
+                    {
+                        "node": "✅ Return Results",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "📝 Log to Slack",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "saveManualExecutions": true,
+        "callerPolicy": "workflowsFromSameOwner"
+    },
+    "staticData": null,
+    "tags": [
+        {
+            "name": "Phase1-MCP",
+            "createdAt": "2026-01-16T00:00:00.000Z",
+            "updatedAt": "2026-01-16T00:00:00.000Z"
+        }
+    ],
+    "triggerCount": 0,
+    "updatedAt": "2026-01-16T12:00:00.000Z",
+    "versionId": "1.0.0"
+}

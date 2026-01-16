@@ -5,21 +5,26 @@
 > - **Typist**: Mengeksekusi perintah satu per satu, reaktif, tergantung instruksi manual
 > - **Architect**: Mendesain sistem yang bekerja otonom, proaktif, orchestrating multiple agents
 
+> 📺 **Video Reference**: [Programmer Zaman Now - Video Coder Wajib Tahu MCP](https://youtu.be/xNFeC4bJ4FY)
+
 ---
 
 ## 📋 Overview Timeline
 
 | Phase | Fokus | Durasi | Target |
 |-------|-------|--------|--------|
-| 1 | MCP Mastery | Q1-Q2 2026 | Connectivity Layer |
-| 2 | Agentic Workflow Design | Q3-Q4 2026 | Workflow Decomposition |
-| 3 | Multi-Agent Systems | Q1-Q2 2027 | Team Architecture |
-| 4 | Governance & Scaling | Q3 2027 - 2030 | Enterprise Ready |
+| 1 | MCP Mastery | Q1-Q2 2026 | Custom MCP Server |
+| 2 | Agentic Workflow Design | Q3-Q4 2026 | Recursive Debugging |
+| 3 | Multi-Agent Systems | Q1-Q2 2027 | One Agent = One MCP |
+| 4 | Governance & Scaling | Q3 2027 - 2030 | Context Filtering |
 
 ---
 
 ## 🔌 PHASE 1: MCP Mastery (The Connectivity Layer)
 **Timeline: Q1-Q2 2026**
+
+### 💡 Video Insight [13:32]
+> *"MCP adalah solusi agar LLM (Gemini, Claude, GPT) punya bahasa yang sama untuk bicara dengan aplikasi seperti MySQL atau SonarQube."*
 
 ### Konsep Fundamental
 
@@ -33,7 +38,38 @@ Model Context Protocol adalah standar terbuka yang memungkinkan AI agents terhub
 └─────────────┘     └─────────┘     └──────────────┘
 ```
 
-**Architect Mindset**: Anda tidak menulis query manual, Anda mendesain "jembatan" yang memungkinkan agent mengakses data secara otonom.
+### 🏗️ Architect Note: Custom MCP Server
+
+> ⚠️ **Jangan cuma pakai MCP publik!** Architect yang handal adalah yang bisa membungkus **Legacy System** perusahaan menjadi sebuah MCP Server agar bisa diakses oleh agen Antigravity.
+
+**Insight Video [16:09]**: Perusahaan besar akan butuh MCP internal untuk menghubungkan data sensitif mereka (order management, member system) ke AI agent secara aman.
+
+```
+TYPIST: Pakai MCP publik apa adanya
+ARCHITECT: Buat Custom MCP untuk Legacy System perusahaan
+
+┌─────────────────────────────────────────────────────────────┐
+│                    CUSTOM MCP SERVER                        │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │   Order     │  │   Member    │  │  Inventory  │         │
+│  │ Management  │  │   System    │  │   System    │         │
+│  │   (Legacy)  │  │   (Legacy)  │  │   (Legacy)  │         │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
+│         │                │                │                 │
+│         └────────────────┼────────────────┘                 │
+│                          ▼                                  │
+│              ┌───────────────────────┐                      │
+│              │   MCP Protocol Layer  │                      │
+│              │   (Standardized API)  │                      │
+│              └───────────────────────┘                      │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+              ┌───────────────────────┐
+              │   Antigravity Agent   │
+              └───────────────────────┘
+```
 
 ### Komponen MCP
 
@@ -53,7 +89,7 @@ untuk menganalisis tren penjualan Q4 2025. Format output sebagai
 executive summary dengan 3 insight utama."
 ```
 
-### Hands-on Project: BigQuery Connector
+### Hands-on Project 1: BigQuery Connector
 
 **Objective**: Hubungkan Antigravity ke BigQuery untuk analisis data otomatis
 
@@ -90,6 +126,97 @@ executive summary dengan 3 insight utama."
 }
 ```
 
+### Hands-on Project 2: Custom MCP untuk Legacy System
+
+**Objective**: Bungkus sistem Order Management lama menjadi MCP Server
+
+```javascript
+// n8n Workflow: Legacy System MCP Wrapper
+{
+  "name": "MCP-Legacy-OrderManagement",
+  "description": "Wrap legacy SOAP/REST API menjadi MCP-compatible endpoint",
+  "nodes": [
+    {
+      "name": "MCP Endpoint",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "mcp-orders",
+        "method": "POST"
+      },
+      "notes": "Standard MCP entry point"
+    },
+    {
+      "name": "Parse MCP Request",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": `
+          // Map MCP tool calls to legacy API format
+          const mcpRequest = $input.first().json.body;
+          const tool = mcpRequest.tool;
+          const params = mcpRequest.parameters;
+          
+          // Transform to legacy format
+          let legacyPayload = {};
+          switch(tool) {
+            case 'get_order':
+              legacyPayload = {
+                action: 'FETCH_ORDER',
+                orderId: params.order_id,
+                format: 'XML'  // Legacy uses XML
+              };
+              break;
+            case 'list_orders':
+              legacyPayload = {
+                action: 'LIST_ORDERS',
+                dateFrom: params.start_date,
+                dateTo: params.end_date
+              };
+              break;
+          }
+          return [{ json: legacyPayload }];
+        `
+      }
+    },
+    {
+      "name": "Call Legacy API",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "http://legacy-erp.internal:8080/api/orders",
+        "method": "POST",
+        "bodyContentType": "xml"
+      }
+    },
+    {
+      "name": "Transform to MCP Response",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": `
+          // Convert legacy XML response to MCP JSON
+          const legacyResponse = $input.first().json;
+          
+          return [{
+            json: {
+              success: true,
+              tool: 'get_order',
+              result: {
+                order_id: legacyResponse.OrderID,
+                customer: legacyResponse.CustomerName,
+                total: parseFloat(legacyResponse.TotalAmount),
+                status: legacyResponse.Status
+              }
+            }
+          }];
+        `
+      }
+    },
+    {
+      "name": "Return MCP Response",
+      "type": "n8n-nodes-base.respondToWebhook"
+    }
+  ]
+}
+```
+
 ### ✅ Checklist of Excellence - Phase 1
 
 - [ ] Memahami arsitektur MCP (Server, Client, Transport)
@@ -97,12 +224,17 @@ executive summary dengan 3 insight utama."
 - [ ] Menghubungkan Antigravity ke BigQuery via MCP
 - [ ] Mampu menulis tool-aware prompts
 - [ ] Membuat n8n workflow sebagai MCP bridge
+- [ ] **🆕 Membuat Custom MCP Server untuk Legacy System**
+- [ ] **🆕 Dokumentasi mapping antara MCP tools dan Legacy API**
 - [ ] Mengeksekusi query kompleks tanpa intervensi manual
 
 ---
 
-## ⚙️ PHASE 2: Agentic Workflow Design
+## ⚙️ PHASE 2: Agentic Workflow Design (The "Repetitive Task" Killer)
 **Timeline: Q3-Q4 2026**
+
+### 💡 Video Insight [10:44]
+> *"Contoh otomatisasi tugas repetitif: Baca error Jenkins → Perbaiki Code → Commit lagi."*
 
 ### Konsep Fundamental
 
@@ -124,6 +256,40 @@ executive summary dengan 3 insight utama."
 
 **Architect Mindset**: Setiap sub-task adalah "kontrak" independen dengan input/output yang jelas.
 
+### 🔄 Teknik: Recursive Debugging Workflow
+
+Dari insight video: AI agent bisa membaca error, mencari solusi, dan memperbaiki code secara loop sampai berhasil.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              RECURSIVE DEBUGGING WORKFLOW                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌─────────┐    ┌──────────┐    ┌─────────────┐           │
+│   │ Monitor │───▶│  Detect  │───▶│  Analyze    │           │
+│   │  Logs   │    │  Error   │    │  with LLM   │           │
+│   └─────────┘    └──────────┘    └──────┬──────┘           │
+│                                         │                   │
+│                                         ▼                   │
+│   ┌─────────┐    ┌──────────┐    ┌─────────────┐           │
+│   │ Create  │◀───│  Apply   │◀───│  Generate   │           │
+│   │   PR    │    │   Fix    │    │   Solution  │           │
+│   └────┬────┘    └──────────┘    └─────────────┘           │
+│        │                                                    │
+│        ▼                                                    │
+│   ┌─────────┐    ┌──────────┐                              │
+│   │  Test   │───▶│  Pass?   │──No──▶ [Loop Back]           │
+│   │  Build  │    │          │                               │
+│   └─────────┘    └────┬─────┘                              │
+│                       │Yes                                  │
+│                       ▼                                     │
+│                 ┌──────────┐                               │
+│                 │  Merge   │                               │
+│                 │   PR     │                               │
+│                 └──────────┘                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Framework ATOMIC Tasks
 
 | Komponen | Deskripsi | Contoh |
@@ -135,45 +301,107 @@ executive summary dengan 3 insight utama."
 | **I**nput | Data yang dibutuhkan | "Raw email content" |
 | **C**onstraints | Batasan eksekusi | "Max 30 detik" |
 
-### Hands-on Project: Invoice Processing Pipeline
+### 🆕 Hands-on Project: GCP Error Auto-Fixer
+
+**Objective**: Monitor error di Google Cloud, analisis dengan AI, dan buat PR perbaikan otomatis
 
 ```javascript
-// n8n Workflow: Agentic Invoice Processor
+// n8n Workflow: Recursive Error Debugging
 {
-  "name": "Invoice-Decomposition-Workflow",
+  "name": "GCP-Error-AutoFixer",
+  "description": "Monitor GCP errors, analyze with Antigravity, auto-create PR",
   "nodes": [
     {
-      "name": "Email Trigger",
-      "type": "n8n-nodes-base.emailTrigger",
-      "notes": "TRIGGER: Setiap ada attachment PDF"
-    },
-    {
-      "name": "Extract PDF Text",
-      "type": "n8n-nodes-base.extractFromFile",
-      "notes": "ACTION: OCR extraction"
-    },
-    {
-      "name": "AI Parse Invoice",
-      "type": "@n8n/n8n-nodes-langchain.agent",
+      "name": "GCP Log Trigger",
+      "type": "n8n-nodes-base.googleCloudPubSub",
       "parameters": {
-        "prompt": "Extract: vendor_name, invoice_number, amount, due_date. OUTPUT: JSON format only."
+        "topic": "projects/myproject/topics/error-logs",
+        "subscription": "n8n-error-handler"
       },
-      "notes": "OUTPUT: Structured JSON"
+      "notes": "TRIGGER: Setiap ada error log di GCP"
     },
     {
-      "name": "Validate Data",
-      "type": "n8n-nodes-base.if",
+      "name": "Parse Error Log",
+      "type": "n8n-nodes-base.code",
       "parameters": {
-        "conditions": {
-          "number": [{"value1": "={{ $json.amount }}", "operation": "isNotEmpty"}]
+        "jsCode": `
+          const log = $input.first().json;
+          return [{
+            json: {
+              errorType: log.severity,
+              message: log.textPayload,
+              service: log.resource.labels.service_name,
+              timestamp: log.timestamp,
+              stackTrace: log.jsonPayload?.stack_trace || ''
+            }
+          }];
+        `
+      },
+      "notes": "ACTION: Extract error details"
+    },
+    {
+      "name": "Call Antigravity via MCP",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "http://localhost:3000/mcp-analyze",
+        "method": "POST",
+        "body": {
+          "tool": "analyze_error",
+          "parameters": {
+            "error_message": "={{ $json.message }}",
+            "stack_trace": "={{ $json.stackTrace }}",
+            "context": "GCP Cloud Run service error"
+          }
         }
       },
-      "notes": "CONSTRAINT: Data completeness check"
+      "notes": "OUTPUT: AI analysis + suggested fix"
     },
     {
-      "name": "Save to Database",
-      "type": "n8n-nodes-base.postgres",
-      "notes": "METRICS: Success rate tracking"
+      "name": "Get Source Code",
+      "type": "n8n-nodes-base.github",
+      "parameters": {
+        "operation": "getContent",
+        "owner": "myorg",
+        "repository": "myapp",
+        "path": "={{ $json.suggested_file }}"
+      }
+    },
+    {
+      "name": "Apply Fix with AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "http://localhost:3000/mcp-fix",
+        "method": "POST",
+        "body": {
+          "tool": "apply_code_fix",
+          "parameters": {
+            "original_code": "={{ $json.content }}",
+            "error_analysis": "={{ $('Call Antigravity via MCP').json.analysis }}",
+            "fix_suggestion": "={{ $('Call Antigravity via MCP').json.fix }}"
+          }
+        }
+      }
+    },
+    {
+      "name": "Create Pull Request",
+      "type": "n8n-nodes-base.github",
+      "parameters": {
+        "operation": "createPullRequest",
+        "owner": "myorg",
+        "repository": "myapp",
+        "title": "🤖 Auto-fix: {{ $json.error_type }}",
+        "body": "## AI-Generated Fix\\n\\n{{ $json.explanation }}",
+        "head": "auto-fix/{{ $now.toMillis() }}",
+        "base": "main"
+      }
+    },
+    {
+      "name": "Notify Team",
+      "type": "n8n-nodes-base.slack",
+      "parameters": {
+        "channel": "#dev-alerts",
+        "text": "🤖 *Auto-Fix PR Created*\\n\\nError: {{ $json.error_message }}\\nPR: {{ $json.pr_url }}"
+      }
     }
   ]
 }
@@ -201,42 +429,58 @@ Kapan KEEP MONOLITHIC:
 - [ ] Membuat workflow dengan 5+ nodes yang saling terhubung
 - [ ] Implementasi error handling per-node
 - [ ] Membuat decision points (IF/Switch) dalam workflow
+- [ ] **🆕 Implementasi Recursive Debugging Workflow**
+- [ ] **🆕 Integrasi dengan GCP Logging**
+- [ ] **🆕 Auto-create GitHub PR dari AI analysis**
 - [ ] Mengukur execution time per task
 - [ ] Dokumentasi input/output setiap node
 
 ---
 
-## 🤖 PHASE 3: Multi-Agent Systems Architecture
+## 🤖 PHASE 3: Multi-Agent Systems (MAS) Architecture
 **Timeline: Q1-Q2 2027**
 
-### Konsep Fundamental
+### 💡 Video Insight [15:28]
+> *"Customer Service harus buka banyak aplikasi sekaligus — ini bisa digantikan dengan AI agent yang mengakses semua melalui MCP."*
 
-Multi-Agent Systems (MAS) adalah tim digital yang terdiri dari agen-agen spesialis yang berkolaborasi untuk menyelesaikan tugas kompleks.
+### Konsep Fundamental: One Agent = One MCP
+
+Multi-Agent Systems (MAS) adalah tim digital yang terdiri dari agen-agen spesialis yang berkolaborasi. **Insight kunci dari video**: Setiap agent spesialis memegang **satu MCP** untuk domain-nya.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                 ORCHESTRATOR AGENT                  │
-│          (Koordinator & Decision Maker)             │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    ORCHESTRATOR AGENT                       │
+│             (Koordinator & Decision Maker)                  │
+│                    [No Direct MCP]                          │
+└─────────────────────────────────────────────────────────────┘
          │              │              │
          ▼              ▼              ▼
    ┌──────────┐  ┌──────────┐  ┌──────────┐
-   │ Research │  │ Planning │  │    QA    │
+   │ Database │  │   Ops    │  │  Code    │
    │  Agent   │  │  Agent   │  │  Agent   │
+   ├──────────┤  ├──────────┤  ├──────────┤
+   │ MCP:     │  │ MCP:     │  │ MCP:     │
+   │ MySQL    │  │ Jenkins  │  │ GitHub   │
+   │ [12:43]  │  │ SonarQube│  │ GitLab   │
+   │          │  │ [12:19]  │  │          │
    └──────────┘  └──────────┘  └──────────┘
 ```
 
-**Architect Mindset**: Anda adalah CTO tim digital. Setiap agent punya job description, KPI, dan communication protocol.
+### 🏗️ Architect Mindset
 
-### Agent Archetypes
+> **Typist**: Satu agent coba akses semua sistem
+> **Architect**: Setiap agent adalah spesialis dengan akses MCP terbatas (Principle of Least Privilege)
 
-| Agent Type | Responsibility | Tools |
-|------------|----------------|-------|
-| **Orchestrator** | Koordinasi, routing, decision | Workflow engine |
-| **Research** | Gathering data, analysis | Web search, DB query |
-| **Planning** | Strategy, task breakdown | Document generation |
-| **Executor** | Melakukan aksi konkret | API calls, file ops |
-| **QA/Validator** | Quality check, verification | Testing tools |
+### Agent Archetypes (Updated)
+
+| Agent Type | MCP Access | Responsibility |
+|------------|------------|----------------|
+| **Orchestrator** | None (routing only) | Koordinasi, routing, decision |
+| **Database Agent** | MCP MySQL/PostgreSQL | Query, data analysis |
+| **Ops Agent** | MCP Jenkins/SonarQube | CI/CD, code quality |
+| **Code Agent** | MCP GitHub/GitLab | Read/write repositories |
+| **Docs Agent** | MCP Confluence/Notion | Documentation access |
+| **Customer Agent** | MCP CRM/Helpdesk | Customer data |
 
 ### Communication Patterns
 
@@ -261,43 +505,55 @@ Multi-Agent Systems (MAS) adalah tim digital yang terdiri dari agen-agen spesial
    Use: Collaborative reasoning
 ```
 
-### Hands-on Project: Content Creation Team
+### 🆕 Hands-on Project: Customer Service Digital Team
+
+**Objective**: Desain tim digital untuk menggantikan CS yang harus buka banyak aplikasi
 
 ```javascript
-// n8n Workflow: Multi-Agent Content Factory
+// n8n Workflow: Multi-Agent Customer Service
 {
-  "name": "MAS-Content-Team",
-  "description": "Tim digital untuk produksi konten",
+  "name": "MAS-CustomerService-Team",
+  "description": "Tim digital CS dengan spesialisasi per agent",
   "agents": {
     "orchestrator": {
-      "role": "Content Manager",
-      "prompt": "Kamu adalah Content Manager. Terima brief dari user, assign task ke tim, review hasil akhir.",
-      "tools": ["assign_task", "review_content", "publish"]
+      "role": "CS Manager",
+      "mcp": null,
+      "prompt": "Kamu adalah CS Manager. Analisis request customer, tentukan agent mana yang harus handle, koordinasikan response.",
+      "routing_rules": {
+        "order_inquiry": "database_agent",
+        "technical_issue": "ops_agent",
+        "refund_request": "finance_agent"
+      }
     },
-    "researcher": {
-      "role": "Research Specialist",
-      "prompt": "Kamu adalah Research Specialist. Kumpulkan data, statistik, dan referensi untuk topik yang diberikan.",
-      "tools": ["web_search", "query_database", "summarize"]
+    "database_agent": {
+      "role": "Order Specialist",
+      "mcp": "mcp-mysql",
+      "prompt": "Kamu adalah Order Specialist. Gunakan MCP MySQL untuk query data order, shipping status, dan customer history.",
+      "tools": ["query_orders", "get_shipping_status", "get_customer_history"]
     },
-    "writer": {
-      "role": "Content Writer",
-      "prompt": "Kamu adalah Content Writer. Tulis konten berdasarkan outline dan research yang diberikan.",
-      "tools": ["generate_text", "edit_draft"]
+    "ops_agent": {
+      "role": "Technical Support",
+      "mcp": "mcp-jenkins",
+      "prompt": "Kamu adalah Technical Support. Cek status service, recent deployments, dan known issues via MCP Jenkins/SonarQube.",
+      "tools": ["check_service_status", "get_recent_deployments", "check_known_issues"]
     },
-    "qa": {
-      "role": "Quality Assurance",
-      "prompt": "Kamu adalah QA Editor. Cek grammar, fact-check, dan pastikan konten sesuai brand voice.",
-      "tools": ["grammar_check", "fact_verify", "score_content"]
+    "finance_agent": {
+      "role": "Finance Specialist",
+      "mcp": "mcp-accounting",
+      "prompt": "Kamu adalah Finance Specialist. Handle refund requests, payment verification via MCP Accounting system.",
+      "tools": ["verify_payment", "process_refund", "get_transaction_history"]
     }
   },
-  "workflow": [
-    {"from": "user", "to": "orchestrator", "message": "content_brief"},
-    {"from": "orchestrator", "to": "researcher", "message": "research_request"},
-    {"from": "researcher", "to": "writer", "message": "research_data"},
-    {"from": "writer", "to": "qa", "message": "draft_content"},
-    {"from": "qa", "to": "orchestrator", "message": "qa_report"},
-    {"from": "orchestrator", "to": "user", "message": "final_content"}
-  ]
+  "workflow_example": {
+    "customer_request": "Pesanan saya #12345 belum sampai, minta refund",
+    "flow": [
+      {"agent": "orchestrator", "action": "Analyze request → needs order check + refund"},
+      {"agent": "database_agent", "action": "Query order #12345 → status: stuck in transit"},
+      {"agent": "orchestrator", "action": "Route to finance for refund"},
+      {"agent": "finance_agent", "action": "Check payment → process partial refund"},
+      {"agent": "orchestrator", "action": "Compile response to customer"}
+    ]
+  }
 }
 ```
 
@@ -319,21 +575,26 @@ Multi-Agent Systems (MAS) adalah tim digital yang terdiri dari agen-agen spesial
 ### ✅ Checklist of Excellence - Phase 3
 
 - [ ] Mendefinisikan 3+ agent dengan role berbeda
-- [ ] Implementasi Orchestrator pattern
+- [ ] **🆕 Setiap agent punya dedicated MCP (One Agent = One MCP)**
+- [ ] Implementasi Orchestrator pattern (routing only, no direct MCP)
 - [ ] Membuat shared memory/context system
 - [ ] Agents dapat berkomunikasi dan handoff tasks
 - [ ] Implementasi parallel execution
+- [ ] **🆕 Principle of Least Privilege untuk setiap agent**
 - [ ] Error recovery antar agents
 - [ ] Monitoring dashboard untuk agent activity
 
 ---
 
-## 🛡️ PHASE 4: Governance & Scaling
+## 🛡️ PHASE 4: Governance & Scaling (Context Filtering)
 **Timeline: Q3 2027 - 2030**
+
+### 💡 Video Insight [15:44]
+> *"Keamanan adalah kunci saat menghubungkan MCP ke aplikasi internal."*
 
 ### Konsep Fundamental
 
-Enterprise-grade automation membutuhkan tiga pilar: **Security**, **Cost Control**, dan **Compliance**.
+Enterprise-grade automation membutuhkan empat pilar: **Security**, **Cost Control**, **Compliance**, dan **🆕 Context Filtering**.
 
 ```
          ┌─────────────────────────┐
@@ -346,6 +607,145 @@ Enterprise-grade automation membutuhkan tiga pilar: **Security**, **Cost Control
 │Security│    │   Cost   │    │Compliance│
 │ Layer  │    │ Control  │    │  (PDPA)  │
 └────────┘    └──────────┘    └──────────┘
+                    │
+                    ▼
+         ┌─────────────────────────┐
+         │   CONTEXT FILTERING    │
+         │  (AI Data Gatekeeper)  │
+         └─────────────────────────┘
+```
+
+### 🆕 Context Filtering: AI Data Gatekeeper
+
+> **Problem**: AI agent mungkin menarik data yang tidak relevan atau rahasia melalui MCP
+> **Solution**: Layer validasi di n8n sebelum data dilempar ke LLM
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  CONTEXT FILTERING LAYER                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌─────────┐    ┌──────────────┐    ┌─────────────┐       │
+│   │   MCP   │───▶│   FILTER     │───▶│     LLM     │       │
+│   │ Response│    │   ENGINE     │    │   Context   │       │
+│   └─────────┘    └──────┬───────┘    └─────────────┘       │
+│                         │                                   │
+│                         ▼                                   │
+│              ┌─────────────────────┐                        │
+│              │   FILTER RULES      │                        │
+│              ├─────────────────────┤                        │
+│              │ • PII Detection     │                        │
+│              │ • Salary/Financial  │                        │
+│              │ • Medical Records   │                        │
+│              │ • Internal IPs      │                        │
+│              │ • API Keys/Secrets  │                        │
+│              └─────────────────────┘                        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 🆕 Hands-on Project: Context Filter Workflow
+
+```javascript
+// n8n Workflow: Context Filtering Layer
+{
+  "name": "Context-Filter-Gateway",
+  "description": "Filter sensitive data sebelum dikirim ke LLM",
+  "nodes": [
+    {
+      "name": "Receive MCP Response",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "context-filter",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "PII Detection",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": `
+          const data = $input.first().json;
+          const piiPatterns = {
+            nik: /\\b\\d{16}\\b/g,  // Indonesian NIK
+            ktp: /\\b\\d{16}\\b/g,
+            phone: /\\b08\\d{9,11}\\b/g,
+            email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g,
+            creditCard: /\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b/g
+          };
+          
+          let filtered = JSON.stringify(data);
+          let detected = [];
+          
+          for (const [type, pattern] of Object.entries(piiPatterns)) {
+            const matches = filtered.match(pattern);
+            if (matches) {
+              detected.push({ type, count: matches.length });
+              filtered = filtered.replace(pattern, '[REDACTED_' + type.toUpperCase() + ']');
+            }
+          }
+          
+          return [{
+            json: {
+              original: data,
+              filtered: JSON.parse(filtered),
+              piiDetected: detected,
+              wasFiltered: detected.length > 0
+            }
+          }];
+        `
+      }
+    },
+    {
+      "name": "Sensitive Field Masking",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": `
+          const data = $input.first().json.filtered;
+          const sensitiveFields = [
+            'salary', 'gaji', 'password', 'secret', 'api_key',
+            'bank_account', 'rekening', 'balance', 'saldo'
+          ];
+          
+          function maskSensitive(obj) {
+            if (typeof obj !== 'object' || obj === null) return obj;
+            
+            const result = Array.isArray(obj) ? [] : {};
+            for (const [key, value] of Object.entries(obj)) {
+              const lowerKey = key.toLowerCase();
+              if (sensitiveFields.some(f => lowerKey.includes(f))) {
+                result[key] = '[MASKED]';
+              } else if (typeof value === 'object') {
+                result[key] = maskSensitive(value);
+              } else {
+                result[key] = value;
+              }
+            }
+            return result;
+          }
+          
+          return [{ json: { data: maskSensitive(data) } }];
+        `
+      }
+    },
+    {
+      "name": "Log Filter Activity",
+      "type": "n8n-nodes-base.postgres",
+      "parameters": {
+        "operation": "insert",
+        "table": "context_filter_logs",
+        "columns": "timestamp,pii_detected,fields_masked,request_id"
+      }
+    },
+    {
+      "name": "Return Filtered Context",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "responseBody": "={{ $json }}"
+      }
+    }
+  ]
+}
 ```
 
 ### Security Architecture
@@ -419,79 +819,6 @@ const taskCostTracker = {
 | Breach Notification | 72-hour alert system |
 | DPO Assignment | Designated Data Protection Officer |
 
-### Hands-on Project: Governance Dashboard
-
-```javascript
-// n8n Workflow: Enterprise Governance
-{
-  "name": "Governance-Monitor",
-  "nodes": [
-    {
-      "name": "Collect Metrics",
-      "type": "n8n-nodes-base.schedule",
-      "parameters": {"rule": "*/5 * * * *"}
-    },
-    {
-      "name": "Calculate Costs",
-      "type": "n8n-nodes-base.function",
-      "parameters": {
-        "functionCode": `
-          const tasks = $input.all();
-          const totalCost = tasks.reduce((sum, t) => sum + t.json.costs.total, 0);
-          const budget = 100; // $100 daily
-          return [{
-            json: {
-              dailyCost: totalCost,
-              budgetUsed: (totalCost/budget)*100,
-              alert: totalCost > budget * 0.8
-            }
-          }];
-        `
-      }
-    },
-    {
-      "name": "Security Audit",
-      "type": "n8n-nodes-base.function",
-      "parameters": {
-        "functionCode": `
-          // Check for anomalies
-          const logs = $input.all();
-          const anomalies = logs.filter(l => 
-            l.json.failedAttempts > 3 || 
-            l.json.unusualLocation
-          );
-          return anomalies;
-        `
-      }
-    },
-    {
-      "name": "PDPA Compliance Check",
-      "type": "n8n-nodes-base.function",
-      "parameters": {
-        "functionCode": `
-          // Verify data handling compliance
-          return [{
-            json: {
-              consentValid: true,
-              dataMinimized: true,
-              retentionCompliant: true,
-              localStorageOnly: true
-            }
-          }];
-        `
-      }
-    },
-    {
-      "name": "Alert if Issues",
-      "type": "n8n-nodes-base.slack",
-      "parameters": {
-        "channel": "#governance-alerts"
-      }
-    }
-  ]
-}
-```
-
 ### Scaling Strategy
 
 ```
@@ -519,6 +846,9 @@ Level 3: Enterprise (50+ workflows)
 - [ ] Audit logging untuk semua agent actions
 - [ ] PDPA compliance checklist terpenuhi
 - [ ] Encryption at rest dan in transit
+- [ ] **🆕 Context Filtering Layer implemented**
+- [ ] **🆕 PII Detection & Masking active**
+- [ ] **🆕 Sensitive field auto-redaction**
 - [ ] Disaster recovery plan documented
 - [ ] SLA monitoring dashboard
 - [ ] Automated security scanning
@@ -541,16 +871,21 @@ Phase 4: Governance & Scaling  [░░░░░░░░░░] 0%
 
 | Aspect | Typist Approach | Architect Approach |
 |--------|-----------------|---------------------|
+| MCP Usage | Pakai MCP publik | Buat Custom MCP untuk Legacy |
+| Error Handling | Fix when broken | Recursive auto-fix workflow |
+| Agent Design | One agent does all | One Agent = One MCP |
+| Security | Trust all data | Context Filtering Layer |
 | Problem Solving | Copy-paste solutions | Design reusable patterns |
-| Error Handling | Fix when broken | Prevent with guardrails |
 | Scaling | Add more people | Add more agents |
-| Documentation | Write after done | Design docs first |
-| Testing | Manual checks | Automated QA agents |
 | Cost | Unknown until billed | Budgeted per task |
 
 ---
 
 ## 📚 Resources
+
+### Video Reference
+- 📺 [Programmer Zaman Now - Video Coder Wajib Tahu MCP](https://youtu.be/xNFeC4bJ4FY)
+- 💬 [GitHub Q&A Thread](https://github.com/ProgrammerZamanNow/qna/issues/915)
 
 ### Dokumentasi Resmi
 - [MCP Specification](https://modelcontextprotocol.io)
@@ -558,12 +893,13 @@ Phase 4: Governance & Scaling  [░░░░░░░░░░] 0%
 - [Google Cloud AI](https://cloud.google.com/ai)
 
 ### Learning Path
-1. **Week 1-2**: MCP fundamentals
-2. **Week 3-4**: First MCP server setup
-3. **Month 2**: Workflow decomposition practice
-4. **Month 3-4**: Multi-agent experiments
-5. **Month 5-6**: Enterprise governance
+1. **Week 1-2**: MCP fundamentals + Custom MCP Server
+2. **Week 3-4**: First MCP server for Legacy System
+3. **Month 2**: Recursive Debugging Workflow
+4. **Month 3-4**: Multi-agent with One Agent = One MCP
+5. **Month 5-6**: Context Filtering + Enterprise governance
 
 ---
 
-*Document Version: 1.0 | Created: 2026-01-16 | Author: Antigravity AI Architect*
+*Document Version: 2.0 | Updated: 2026-01-16 | Enhanced with Video Insights from Programmer Zaman Now*
+*Author: Antigravity AI Architect*
