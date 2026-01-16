@@ -1,0 +1,732 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const webhookBody = item.json.body; // Ambil bagian 'body' dari webhookData\n\n  // Ekstraksi data berdasarkan format webhook baru\n  let phoneNumber = webhookBody.from;\n  if (phoneNumber && phoneNumber.endsWith('@s.whatsapp.net')) {\n    phoneNumber = phoneNumber.replace('@s.whatsapp.net', '');\n  }\n  const messageContent = webhookBody.message.text;\n  const senderName = webhookBody.pushname; // Mengambil nama pengirim\n\n  const leadId = `LEAD-${Date.now()}-${Math.floor(Math.random() * 1000)}`; // ID unik\n  const entryDate = webhookBody.timestamp || new Date().toISOString(); // Gunakan timestamp dari webhook jika ada\n  const lastInteraction = entryDate;\n\n  items.push({\n    json: {\n      leadId: leadId,\n      phoneNumber: phoneNumber,\n      senderName: senderName, // Menambahkan senderName\n      initialMessage: messageContent,\n      entryDate: entryDate,\n      lastInteraction: lastInteraction,\n      status: \"New Lead\", // Status awal\n      nurtureStage: 0, // Tahap nurturing awal (0 berarti belum mulai follow-up terjadwal)\n      nextFollowUpDate: null // Akan diisi oleh Workflow B\n    }\n  });\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -400
+      ],
+      "id": "6cf64941-0d1d-4a8a-8256-f687f0a8157a",
+      "name": "[CODE] Parse Data WhatsApp Lead"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dev",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        -400
+      ],
+      "id": "d597bed7-2e34-45ab-bb6b-7a581f5db5c3",
+      "name": "[TRIG] Webhook WhatsApp Masuk",
+      "webhookId": "53c282a8-69ee-4c34-a2d8-923aa0401ce8"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "CRM Leads Nurturing",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "leadId": "={{ $json.leadId }}",
+            "phoneNumber": "={{ $json.phoneNumber }}",
+            "initialMessage": "={{ $json.initialMessage }}",
+            "senderName": "={{ $json.senderName }}",
+            "entryDate": "={{ $json.entryDate }}",
+            "lastInteraction": "={{ $json.lastInteraction }}",
+            "status": "={{ $json.status }}",
+            "nurtureStage": "={{ $json.nurtureStage }}",
+            "nextFollowUpDate": "={{ $json.nextFollowUpDate }}"
+          },
+          "matchingColumns": [
+            "phoneNumber"
+          ],
+          "schema": [
+            {
+              "id": "leadId",
+              "displayName": "leadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "phoneNumber",
+              "displayName": "phoneNumber",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "senderName",
+              "displayName": "senderName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "initialMessage",
+              "displayName": "initialMessage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entryDate",
+              "displayName": "entryDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lastInteraction",
+              "displayName": "lastInteraction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nurtureStage",
+              "displayName": "nurtureStage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nextFollowUpDate",
+              "displayName": "nextFollowUpDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        -400
+      ],
+      "id": "8be0bebd-5683-4336-afc2-3796b8ae8a5e",
+      "name": "[DATA] Simpan/Update Lead ke Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AJvOF7ZeXrLUoPVM",
+          "name": "agusahmad1112"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $json.phoneNumber }}",
+        "message": "=Halo {{ $json.senderName || $json.phoneNumber }}, terima kasih sudah menghubungi kami. Ada yang bisa kami bantu?"
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        -400
+      ],
+      "id": "ea588bf5-dba2-486a-9cf6-7f8b97ecbd41",
+      "name": "[OUT] Kirim Pesan Selamat Datang (Gowa)",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "JwAsiI6fm3kFaESR",
+          "name": "GOWA DEV"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## WhatsApp Lead Ingestion & Initial Contact",
+        "height": 320,
+        "width": 992
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        448,
+        -512
+      ],
+      "typeVersion": 1,
+      "id": "2f08ccaa-ea95-42ff-bbf2-cd9d259d3c69",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        112
+      ],
+      "id": "46e7010b-5634-4174-a9c5-4026245dc97f",
+      "name": "[TRIG] Jadwal Follow-up Harian"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        432,
+        112
+      ],
+      "id": "e3cf2279-f3a9-46a3-849e-9574ee9eea53",
+      "name": "[LOOP] Pisahkan Lead"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst lead = item.json;\n\n// 1. Ambil data dengan nilai default yang aman\nconst status = lead.status || \"\";\nconst currentNurtureStage = parseInt(lead.nurtureStage || 0); // Pastikan angka, default 0\nconst nextFollowUpDateStr = lead.nextFollowUpDate; // Bisa null atau string\n\nlet shouldFollowUp = false;\n\n// Kondisi 1: Status BUKAN \"Deal\", \"Inactive\", atau \"Nurturing Complete\"\nconst isStatusEligible = status !== \"Deal\" && status !== \"Inactive\" && status !== \"Nurturing Complete\";\n\n// Kondisi 2: Nurture Stage belum mencapai batas maksimal (misal, 4 tahap: 0, 1, 2, 3)\nconst isStageEligible = currentNurtureStage < 4;\n\n// Kondisi 3: nextFollowUpDate sudah tiba ATAU belum diset (null/empty)\nlet isDateEligible = false;\nif (!nextFollowUpDateStr) {\n  // Jika nextFollowUpDate null atau kosong, berarti ini lead baru atau belum dijadwalkan follow-up\n  // atau sudah lewat dan belum di-update. Anggap eligible untuk follow-up.\n  isDateEligible = true;\n} else {\n  // Jika nextFollowUpDate ada, cek apakah sudah melewati atau sama dengan hari ini\n  const nextFollowUpDate = new Date(nextFollowUpDateStr);\n  const now = new Date();\n\n  // Reset jam/menit/detik untuk perbandingan HANYA tanggal (jika ingin per hari)\n  // Atau biarkan full timestamp jika ingin akurat per jam/menit\n  nextFollowUpDate.setHours(0, 0, 0, 0); // Hapus waktu agar hanya bandingkan tanggal\n  now.setHours(0, 0, 0, 0);\n\n  isDateEligible = nextFollowUpDate.getTime() <= now.getTime();\n}\n\n// Gabungkan semua kondisi dengan AND\nshouldFollowUp = isStatusEligible && isStageEligible && isDateEligible;\n\n// Tambahkan flag shouldFollowUp ke output\nreturn {\n  json: {\n    ...lead, // Salin semua data lead yang sudah ada\n    shouldFollowUp: shouldFollowUp\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        32
+      ],
+      "id": "33b4cd34-52dc-448e-afce-3d9b5477d357",
+      "name": "[CODE] Siapkan Logika Follow-up"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5e7576d8-9aa9-417d-8a2c-4fddec927a76",
+              "leftValue": "={{ $json.shouldFollowUp }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        32
+      ],
+      "id": "d70d446a-98a1-4f77-9171-131d814b4d24",
+      "name": "[LOGIC] Lead Perlu Follow-up"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst lead = item.json;\n\n// Pastikan nurtureStage adalah angka\nconst currentNurtureStage = parseInt(lead.nurtureStage || 0);\n\nlet messageText = \"\";\nlet newNurtureStage = currentNurtureStage + 1; // Tahap nurturing selanjutnya\nlet delayDays = 0; // Default delay untuk follow-up berikutnya (dalam hari)\n\n// Gunakan nama jika ada, kalau tidak pakai nomor telepon\nconst personName = lead.senderName || lead.phoneNumber;\n\nswitch (currentNurtureStage) {\n  case 0: // Tahap awal setelah welcome message\n    messageText = `Halo ${personName}, ini saya dari Axiamasi. Semoga sehat selalu ya. Mau tanya, apakah ada pertanyaan lebih lanjut tentang produk/layanan kami setelah pesan kemarin?`;\n    delayDays = 2; // Follow-up 2 hari lagi\n    break;\n  case 1:\n    messageText = `Hai lagi ${personName}! Jangan lewatkan penawaran spesial kami bulan ini untuk produk A. Cek detailnya di sini: https://linkproduk.com. Promo terbatas lho!`;\n    delayDays = 3; // Follow-up 3 hari lagi\n    break;\n  case 2:\n    messageText = `Halo ${personName}, banyak customer kami sudah merasakan manfaat produk A. Ini ada beberapa testimoni yang bisa Anda lihat: https://linktestimoni.com. Jika ada pertanyaan atau butuh demo, jangan ragu chat saya ya!`;\n    delayDays = 5; // Follow-up 5 hari lagi\n    break;\n  case 3: // Final follow-up (atau penawaran terakhir)\n    messageText = `Halo ${personName}, ini adalah pesan follow-up terakhir dari kami untuk Anda. Apakah Anda tertarik untuk segera memulai atau mendapatkan konsultasi gratis? Jika tidak ada respons dalam 24 jam, kami akan menganggap Anda belum berminat untuk saat ini.`;\n    newNurtureStage = 99; // Tandai sebagai nurturing selesai (atau 'lost' jika tidak ada respons)\n    delayDays = 0; // Tidak ada follow-up selanjutnya dari alur ini\n    break;\n  default:\n    // Jika stage tidak dikenal atau sudah melewati tahap akhir\n    messageText = \"\"; // Jangan kirim pesan\n    newNurtureStage = currentNurtureStage; // Tidak mengubah stage\n    delayDays = 0;\n    break;\n}\n\n// Hanya proses jika ada pesan yang akan dikirim\nif (messageText) {\n  // Hitung nextFollowUpDate\n // Hitung nextFollowUpDate\nlet nextFollowUpDate = null;\nif (delayDays > 0) {\n  const date = new Date();\n  date.setDate(date.getDate() + delayDays);\n  date.setHours(9, 0, 0, 0); // Kita set jam 9 pagi untuk next follow-up\n  nextFollowUpDate = date.toISOString(); // Pastikan format ISO String\n} else {\n  // Jika nurturing selesai, set status atau biarkan null (akan di-handle di node sheets)\n  nextFollowUpDate = null; // Tidak ada follow-up berikutnya\n}\n\nreturn {\n  json: {\n    ...lead, // Salin semua data lead\n    messageToSend: messageText,\n    newNurtureStage: newNurtureStage,\n    nextFollowUpDate: nextFollowUpDate // Pastikan ini dikirim\n  }\n};\n} else {\n  // Jika tidak ada pesan yang akan dikirim, return item kosong atau filter nanti\n  // Untuk saat ini, kita return data lead aslinya tanpa perubahan jika messageText kosong\n  return item;\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        32
+      ],
+      "id": "efc2b87d-1e56-4366-ba6b-d465ec54e51c",
+      "name": "[CODE] Generate Pesan Nurturing"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "42cb7be7-f793-4c02-891e-0e391c226a53",
+              "name": "gowaPhoneNumber",
+              "value": "={{ $json.phoneNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "46ec0cdc-cb68-4825-b143-67ba1085af79",
+              "name": "gowaMessage",
+              "value": "={{ $json.messageToSend }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1328,
+        32
+      ],
+      "id": "2bd75f06-c591-42ff-b411-6518631fb5dd",
+      "name": "[PREP] Siapkan Data untuk Gowa"
+    },
+    {
+      "parameters": {
+        "content": "## Scheduled Nurturing Follow-up",
+        "height": 432,
+        "width": 2080,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -96,
+        -48
+      ],
+      "typeVersion": 1,
+      "id": "bc5fc8ee-c23e-44f3-baac-6d1942c07819",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g",
+          "mode": "list",
+          "cachedResultName": "WhatsApp Lead Ingestion & Initial Contact",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "CRM Leads Nurturing",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phoneNumber": "={{ $('[CODE] Generate Pesan Nurturing').item.json.phoneNumber }}",
+            "lastInteraction": "={{ new Date().toISOString() }}",
+            "nurtureStage": "={{ $('[CODE] Generate Pesan Nurturing').item.json.newNurtureStage }}",
+            "status": "={{ ($json.newNurtureStage == 99) ? 'Nurturing Complete' : ('Nurturing Stage ' + $json.newNurtureStage) }}",
+            "nextFollowUpDate": "={{ $('[CODE] Generate Pesan Nurturing').item.json.nextFollowUpDate }}"
+          },
+          "matchingColumns": [
+            "phoneNumber"
+          ],
+          "schema": [
+            {
+              "id": "leadId",
+              "displayName": "leadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "phoneNumber",
+              "displayName": "phoneNumber",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "senderName",
+              "displayName": "senderName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "initialMessage",
+              "displayName": "initialMessage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "entryDate",
+              "displayName": "entryDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lastInteraction",
+              "displayName": "lastInteraction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nurtureStage",
+              "displayName": "nurtureStage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nextFollowUpDate",
+              "displayName": "nextFollowUpDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1760,
+        96
+      ],
+      "id": "d7dd3a07-0f0a-4b90-ba6c-657a7f72a96c",
+      "name": "[DATA] Update Status Nurturing (Sheets)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AJvOF7ZeXrLUoPVM",
+          "name": "agusahmad1112"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $json.gowaPhoneNumber }}",
+        "message": "={{ $json.gowaMessage }}",
+        "replyMessageId": "="
+      },
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        32
+      ],
+      "id": "ef09638c-3a89-4dd6-a1cc-b5b6fa5226ed",
+      "name": "[OUT] Kirim Pesan Nurturing",
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "JwAsiI6fm3kFaESR",
+          "name": "GOWA DEV"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g",
+          "mode": "list",
+          "cachedResultName": "WhatsApp Lead Ingestion & Initial Contact",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "CRM Leads Nurturing",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZVFn2-IlepxiPV3lcEPk5G0O8FP8kq-T66qNB7Zvl_g/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        112
+      ],
+      "id": "a7401555-548d-4822-9cd0-13f210a615ba",
+      "name": "[DATA] Ambil Lead dari Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AJvOF7ZeXrLUoPVM",
+          "name": "agusahmad1112"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "[CODE] Parse Data WhatsApp Lead": {
+      "main": [
+        [
+          {
+            "node": "[DATA] Simpan/Update Lead ke Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[TRIG] Webhook WhatsApp Masuk": {
+      "main": [
+        [
+          {
+            "node": "[CODE] Parse Data WhatsApp Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[DATA] Simpan/Update Lead ke Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "[OUT] Kirim Pesan Selamat Datang (Gowa)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[TRIG] Jadwal Follow-up Harian": {
+      "main": [
+        [
+          {
+            "node": "[DATA] Ambil Lead dari Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[LOOP] Pisahkan Lead": {
+      "main": [
+        [],
+        [
+          {
+            "node": "[CODE] Siapkan Logika Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[CODE] Siapkan Logika Follow-up": {
+      "main": [
+        [
+          {
+            "node": "[LOGIC] Lead Perlu Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[LOGIC] Lead Perlu Follow-up": {
+      "main": [
+        [
+          {
+            "node": "[CODE] Generate Pesan Nurturing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[CODE] Generate Pesan Nurturing": {
+      "main": [
+        [
+          {
+            "node": "[PREP] Siapkan Data untuk Gowa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[PREP] Siapkan Data untuk Gowa": {
+      "main": [
+        [
+          {
+            "node": "[OUT] Kirim Pesan Nurturing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[DATA] Update Status Nurturing (Sheets)": {
+      "main": [
+        [
+          {
+            "node": "[LOOP] Pisahkan Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[OUT] Kirim Pesan Nurturing": {
+      "main": [
+        [
+          {
+            "node": "[DATA] Update Status Nurturing (Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[DATA] Ambil Lead dari Sheets": {
+      "main": [
+        [
+          {
+            "node": "[LOOP] Pisahkan Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "[TRIG] Webhook WhatsApp Masuk": [
+      {
+        "headers": {
+          "host": "n8ndev.axiamasi.com",
+          "user-agent": "Go-http-client/1.1",
+          "content-length": "287",
+          "accept-encoding": "gzip, br",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "157.66.54.186",
+          "cf-ipcountry": "ID",
+          "cf-ray": "9bde4e858b501d47-SIN",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "cf-warp-tag-id": "816f328a-d444-4de6-b66e-5da604069f2e",
+          "connection": "keep-alive",
+          "content-type": "application/json",
+          "x-forwarded-for": "157.66.54.186",
+          "x-forwarded-proto": "https",
+          "x-hub-signature-256": "sha256=80d1b8c90f24218a73e88a9dd3cf808cd22380401fa6852af3053577912e0911"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "chat_id": "118773747032313",
+          "from": "628382850049@s.whatsapp.net",
+          "from_lid": "118773747032313@lid",
+          "message": {
+            "text": "P",
+            "id": "AC1C0EFBED1BDA4C2C77D07A308E88CD",
+            "replied_id": "",
+            "quoted_message": ""
+          },
+          "pushname": "Agus Ahmad",
+          "sender_id": "118773747032313",
+          "timestamp": "2026-01-14T15:53:16Z"
+        },
+        "webhookUrl": "https://n8ndev.axiamasi.com/webhook/dev",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bd4060de13254a5798c3554ea819ee09bcda05466b5063c44d443ee15fb3a2a4"
+  }
+}

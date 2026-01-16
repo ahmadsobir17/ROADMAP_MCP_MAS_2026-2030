@@ -1,0 +1,589 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "content": "## 🚀 Axiamasi AI WhatsApp Assistant\n\n**Cara Setup:**\n1. **Credentials:** Pastikan credential Google Sheets, OpenAI, dan GOWA sudah terkoneksi.\n2. **Google Sheets:** \n   - Pastikan ada kolom `Image` atau `Gambar` di sheet produk.\n   - Isi dengan Direct Link atau Google Drive Link (Public).\n3. **Google Drive:** \n   - File gambar WAJIB di-set **\"Anyone with the link\"** (Viewer).\n4. **Webhook:** \n   - Copy URL dari node `WhatsApp Webhook` dan tempel di dashboard GOWA.\n\n**Fitur:**\n- Auto-reply stok & harga.\n- Create Order otomatis.\n- **Image Support:** Otomatis convert link Google Drive jadi gambar fisik di WA.",
+                "height": 552,
+                "width": 395,
+                "color": 6
+            },
+            "id": "77e48d90-89d2-4631-a467-bfec0accec4b",
+            "name": "Sticky Note",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                1392,
+                -928
+            ]
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "whatsapp-webhook",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                400,
+                -336
+            ],
+            "id": "1b3eabd0-a282-4875-abd1-992362c0821b",
+            "name": "WhatsApp Webhook",
+            "webhookId": "placeholder_webhook_id"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract clean data dari GOWA webhook\nconst webhook = $input.item.json;\n\n// Handle berbagai struktur GOWA webhook\nconst messageObj = webhook.body?.message || webhook.message || {};\nconst messageText = messageObj.text || '';\nconst messageId = messageObj.id || '';\nconst pushname = webhook.body?.pushname || webhook.pushname || '';\n\n// Extract phone number dengan regex (handle complex format)\nlet phoneClean = '';\nconst fromField = webhook.body?.from || webhook.from || '';\n\n// Regex untuk extract phone number (angka 10-15 digit)\nconst phoneMatch = fromField.match(/(\\d{10,15})/);\nif (phoneMatch) {\n  phoneClean = phoneMatch[1]; // Ambil nomor pertama yang match\n} else {\n  // Fallback: coba dari sender_id atau chat_id\n  phoneClean = webhook.body?.sender_id || webhook.body?.chat_id || webhook.sender_id || webhook.chat_id || '';\n}\n\n// Validate phone minimal 10 digit\nif (phoneClean.length < 10) {\n  throw new Error('Invalid phone number format: ' + fromField);\n}\n\nreturn [{\n  json: {\n    phone: phoneClean,\n    name: pushname,\n    message: {\n      text: messageText,\n      id: messageId\n    },\n    timestamp: new Date().toISOString(),\n    sessionId: phoneClean,\n    raw_from: fromField\n  }\n}];\n"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                848,
+                -336
+            ],
+            "id": "27d40aa6-a14e-4234-be74-b51744dc610c",
+            "name": "Normalize Input"
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $('Normalize Input').item.json.message.text }}",
+                "options": {
+                    "systemMessage": "=Kamu asisten WhatsApp untuk bisnis.\n\nRole: Auto-reply 24/7, ramah, fast, Bahasa Indonesia casual.\n\nActions:\n- Tanya produk → call get_catalog\n- Customer order → call create_order (validasi dulu!)\n- Tanya status → call check_order_status\n\nFormat order confirmation:\n🎉 Order: [ID]\n📦 [Product] x[Qty]\n💰 Total: Rp[Amount]\n💳 Transfer ke rekening\nAtas nama : YOUR_ACCOUNT_NAME\nNomor Rekening : YOUR_BANK_ACCOUNT\n\nAturan Gambar:\n- Jika user meminta foto/gambar produk, cek di tools 'get_catalog' apakah ada kolom 'Image' atau 'Gambar'.\n- Jika ada URL gambar, JANGAN kirim URL tersebut sebagai teks biasa di tengah kalimat.\n- Berikan respon dengan format khusus di baris paling akhir: \"||IMAGE_URL: [masukkan_link_gambar_disini]||\"\n- Jika tidak ada gambar, katakan \"Maaf, foto produk belum tersedia.\"\n\nFAQ singkat:\n- Kirim: 2-3hr (lokal), 3-5hr (luar kota)\n- Bayar: Transfer bank\n- Retur: 7 hari\n\n"
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 3,
+            "position": [
+                1488,
+                -336
+            ],
+            "id": "dc45135e-b693-4ea6-ad3b-7dd4ea67a771",
+            "name": "AI Sales Agent"
+        },
+        {
+            "parameters": {
+                "documentId": {
+                    "__rl": true,
+                    "value": "YOUR_SPREADSHEET_ID",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "YOUR_SHEET_ID_PRODUCTS",
+                    "mode": "list"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.googleSheetsTool",
+            "typeVersion": 4.7,
+            "position": [
+                1552,
+                -112
+            ],
+            "id": "c1822166-d0fd-48b7-9938-00c59a27a323",
+            "name": "Tool: Get Catalog",
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "documentId": {
+                    "__rl": true,
+                    "value": "YOUR_SPREADSHEET_ID",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "YOUR_SHEET_ID_ORDERS",
+                    "mode": "list"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "Notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Notes', ``, 'string') }}",
+                        "Status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Status', ``, 'string') }}",
+                        "Total": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Total', ``, 'string') }}",
+                        "Items": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Items', ``, 'string') }}",
+                        "Phone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Phone', ``, 'string') }}",
+                        "Customer Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Customer_Name', ``, 'string') }}",
+                        "Timestamp": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Timestamp', ``, 'string') }}",
+                        "Order ID": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Order_ID', ``, 'string') }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "Order ID",
+                            "displayName": "Order ID",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "Timestamp",
+                            "displayName": "Timestamp",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "Customer Name",
+                            "displayName": "Customer Name",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "Phone",
+                            "displayName": "Phone",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "Items",
+                            "displayName": "Items",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "Total",
+                            "displayName": "Total",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "Status",
+                            "displayName": "Status",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "Notes",
+                            "displayName": "Notes",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        }
+                    ],
+                    "attemptToConvertTypes": false,
+                    "convertFieldsToString": false
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.googleSheetsTool",
+            "typeVersion": 4.7,
+            "position": [
+                1680,
+                -112
+            ],
+            "id": "d7b3ffe3-9762-4a40-bb03-5704cc745903",
+            "name": "Tool: Create Order",
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "documentId": {
+                    "__rl": true,
+                    "value": "YOUR_SPREADSHEET_ID",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "YOUR_SHEET_ID_CUSTOMERS",
+                    "mode": "list"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.googleSheetsTool",
+            "typeVersion": 4.7,
+            "position": [
+                1808,
+                -112
+            ],
+            "id": "ea4e2374-a220-4694-988b-efd8fe2ca896",
+            "name": "Tool: Check Status",
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "sendChatPresence",
+                "phoneNumber": "={{ $json.phone }}"
+            },
+            "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+            "typeVersion": 1,
+            "position": [
+                1072,
+                -336
+            ],
+            "id": "06c3b694-fbe9-4fa8-a433-3c9ab5000422",
+            "name": "Typing Indicator",
+            "credentials": {
+                "goWhatsappApi": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOWA_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const webhook = $input.item.json;\nconst body = webhook.body || {};\nconst event = webhook.event || '';\nif (event && event !== 'message') {\n  return [];\n}\nconst messageText = body.message?.text || '';\nif (!messageText || messageText.trim() === '') {\n  return [];\n}\nconst messageId = body.message?.id || '';\nif (!messageId) {\n  return [];\n}\nconst staticData = $getWorkflowStaticData('global');\nconst processedMessages = staticData.processedMessages || [];\nif (processedMessages.includes(messageId)) {\n  return [];\n}\nprocessedMessages.push(messageId);\nif (processedMessages.length > 100) {\n  processedMessages.shift();\n}\nstaticData.processedMessages = processedMessages;\nreturn $input.all();"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                624,
+                -336
+            ],
+            "id": "7f0066c0-550c-4b3b-818c-f4316b9ff802",
+            "name": "Deduplication & Filter"
+        },
+        {
+            "parameters": {
+                "phoneNumber": "={{ $('Normalize Input').item.json.phone }}",
+                "message": "={{ $json.output }}"
+            },
+            "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+            "typeVersion": 1,
+            "position": [
+                2240,
+                -240
+            ],
+            "id": "589ffdfa-1334-46f8-af99-e5697440e37c",
+            "name": "Send Text Response",
+            "credentials": {
+                "goWhatsappApi": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOWA_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "b46ff242-cd1b-4c1e-bf45-c6efcaaa46bf",
+                            "leftValue": "={{ $json.output.includes('||IMAGE_URL:') }}",
+                            "rightValue": "={{ $json.output.includes('||IMAGE_URL:') }}",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                2016,
+                -336
+            ],
+            "id": "01611264-b2b2-4b7f-b28c-80e638d6f64e",
+            "name": "Is Image Response?"
+        },
+        {
+            "parameters": {
+                "jsCode": "const text = $input.item.json.output;\n// Regex untuk menangkap URL gambar dalam format ||IMAGE_URL:...||\nconst urlRegex = /\\|\\|IMAGE_URL:\\s*(.*?)\\|\\|/;\nconst match = text.match(urlRegex);\n\nlet imageUrl = match ? match[1] : null;\nconst caption = text.replace(urlRegex, '').trim();\n\n// --- FIX OTOMATIS GOOGLE DRIVE ---\nif (imageUrl && imageUrl.includes('drive.google.com')) {\n  const idMatch = imageUrl.match(/\\/d\\/([a-zA-Z0-9_-]+)/);\n  if (idMatch) {\n    imageUrl = `https://drive.google.com/uc?export=download&id=${idMatch[1]}`;\n  }\n}\n// ---------------------------------\n\nreturn {\n  json: {\n    phone: $input.item.json.phone,\n    image: imageUrl,\n    caption: caption\n  }\n};"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2240,
+                -432
+            ],
+            "id": "15f9c332-8ce9-43d6-a1be-2d449d3324e7",
+            "name": "Prepare Image URL"
+        },
+        {
+            "parameters": {
+                "operation": "sendMedia",
+                "phoneNumber": "={{ $('Normalize Input').item.json.phone }}",
+                "caption": "={{ $json.caption }}"
+            },
+            "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+            "typeVersion": 1,
+            "position": [
+                2688,
+                -432
+            ],
+            "id": "6de97912-1186-4c91-ac4b-3a48530dc30a",
+            "name": "Send Image Response",
+            "credentials": {
+                "goWhatsappApi": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOWA_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.image }}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "file"
+                        }
+                    }
+                }
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                2464,
+                -432
+            ],
+            "id": "48e007bc-0bf5-4b5a-91de-7a67786b752e",
+            "name": "Download Image Binary"
+        },
+        {
+            "parameters": {
+                "sessionIdType": "customKey",
+                "sessionKey": "={{ $('Normalize Input').item.json.sessionId }}"
+            },
+            "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+            "typeVersion": 1.3,
+            "position": [
+                1424,
+                -112
+            ],
+            "id": "298b2f1e-88f6-41f1-90a2-5acc1eb255f0",
+            "name": "Simple Memory"
+        },
+        {
+            "parameters": {
+                "model": {
+                    "__rl": true,
+                    "value": "gpt-3.5-turbo",
+                    "mode": "list"
+                },
+                "builtInTools": {},
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1.3,
+            "position": [
+                1296,
+                -112
+            ],
+            "id": "eae61d07-b973-4a16-ac61-3ee358d87151",
+            "name": "OpenAI Chat Model",
+            "credentials": {
+                "openAiApi": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_OPENAI_CREDENTIAL"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "WhatsApp Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Deduplication & Filter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Normalize Input": {
+            "main": [
+                [
+                    {
+                        "node": "Typing Indicator",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Sales Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Is Image Response?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Tool: Get Catalog": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "AI Sales Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Tool: Create Order": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "AI Sales Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Tool: Check Status": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "AI Sales Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Typing Indicator": {
+            "main": [
+                [
+                    {
+                        "node": "AI Sales Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Deduplication & Filter": {
+            "main": [
+                [
+                    {
+                        "node": "Normalize Input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Image Response?": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Image URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Send Text Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Image URL": {
+            "main": [
+                [
+                    {
+                        "node": "Download Image Binary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download Image Binary": {
+            "main": [
+                [
+                    {
+                        "node": "Send Image Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Simple Memory": {
+            "ai_memory": [
+                [
+                    {
+                        "node": "AI Sales Agent",
+                        "type": "ai_memory",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Sales Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "placeholder_instance_id"
+    }
+}

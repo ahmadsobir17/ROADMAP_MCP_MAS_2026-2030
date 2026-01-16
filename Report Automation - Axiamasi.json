@@ -1,0 +1,249 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 20
+                        }
+                    ]
+                }
+            },
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.3,
+            "position": [
+                0,
+                304
+            ],
+            "id": "fbc50900-938b-4276-89c6-5dddf6914dd0",
+            "name": "[TRG] Harian (20:00)"
+        },
+        {
+            "parameters": {
+                "documentId": {
+                    "__rl": true,
+                    "value": "YOUR_SPREADSHEET_ID",
+                    "mode": "list"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "YOUR_SHEET_ID_TRANSAKSI",
+                    "mode": "list"
+                },
+                "filtersUI": {
+                    "values": [
+                        {
+                            "lookupColumn": "Tanggal",
+                            "lookupValue": "={{ $json.targetDate }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.7,
+            "position": [
+                448,
+                304
+            ],
+            "id": "5c585db6-53d3-4d71-868e-4803382568d6",
+            "name": "[DATA] Tarik Transaksi Sheets",
+            "alwaysOutputData": true,
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "documentId": {
+                    "__rl": true,
+                    "value": "YOUR_SPREADSHEET_ID",
+                    "mode": "list"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "YOUR_SHEET_ID_MASTER_STOK",
+                    "mode": "list"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.7,
+            "position": [
+                672,
+                304
+            ],
+            "id": "9ef7e245-0599-4f7a-ab27-95c23b3be08a",
+            "name": "[DATA] Tarik Master Stok",
+            "alwaysOutputData": true,
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "formatDate",
+                "date": "={{ $json.timestamp }}",
+                "format": "yyyy-MM-dd",
+                "outputFieldName": "targetDate",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.dateTime",
+            "typeVersion": 2,
+            "position": [
+                224,
+                304
+            ],
+            "id": "d3036f53-17da-4b33-8f2e-a7a607417cf1",
+            "name": "[PREP] Set Tanggal Laporan"
+        },
+        {
+            "parameters": {
+                "jsCode": "// 1. Ambil data menggunakan nama node baru\nconst transaksi = $(['[DATA] Tarik Transaksi Sheets']).all();\nconst stok = $(['[DATA] Tarik Master Stok']).all();\nconst targetDate = $('[PREP] Set Tanggal Laporan').first().json.targetDate; \n\n// 2. Filter & Kalkulasi\nconst salesToday = transaksi.filter(item => item.json.Tanggal === targetDate);\nconst totalOmzet = salesToday.reduce((sum, item) => sum + (Number(item.json.Total_Harga) || 0), 0);\n\n// 3. Best Seller Logic\nconst productCount = {};\nsalesToday.forEach(item => {\n  const name = item.json.Nama_Produk;\n  productCount[name] = (productCount[name] || 0) + Number(item.json.Jumlah);\n});\n\nlet bestSeller = salesToday.length > 0 ? \"\" : \"Tidak ada penjualan\";\nlet maxQty = 0;\nfor (const [name, qty] of Object.entries(productCount)) {\n  if (qty > maxQty) {\n    maxQty = qty;\n    bestSeller = name;\n  }\n}\n\n// 4. Low Stock Logic\nconst lowStock = stok\n  .filter(item => item.json.Stok_Sekarang !== undefined && Number(item.json.Stok_Sekarang) <= Number(item.json.Minimal_Stok))\n  .map(item => `${item.json.Nama_Produk} (Sisa: ${item.json.Stok_Sekarang})`);\n\nconst formatter = new Intl.NumberFormat('id-ID', {\n  style: 'currency',\n  currency: 'IDR',\n  minimumFractionDigits: 0\n});\n\nreturn {\n  tanggal: targetDate,\n  total_omzet_raw: totalOmzet,\n  total_omzet_formatted: formatter.format(totalOmzet),\n  total_transaksi: salesToday.length,\n  produk_terlaris: bestSeller,\n  stok_menipis: lowStock.length > 0 ? lowStock.join(', ') : 'Semua stok aman',\n  status_stok: lowStock.length > 0 ? '⚠️ PERHATIAN' : '✅ AMAN'\n};"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                896,
+                304
+            ],
+            "id": "ee946871-d18f-4588-98f4-780093f95b85",
+            "name": "[LOGIC] Kalkulasi Data"
+        },
+        {
+            "parameters": {
+                "chatId": "YOUR_TELEGRAM_CHAT_ID",
+                "text": "={{ $json.teks_laporan }}",
+                "additionalFields": {
+                    "appendAttribution": false,
+                    "parse_mode": "HTML"
+                }
+            },
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                1344,
+                304
+            ],
+            "id": "d7e4cbd1-32f5-4079-bc56-e31224e3ee65",
+            "name": "[OUT] Kirim Telegram",
+            "webhookId": "placeholder_webhook_id",
+            "credentials": {
+                "telegramApi": {
+                    "id": "placeholder_id",
+                    "name": "YOUR_TELEGRAM_API_CREDENTIAL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const data = $json;\nconst emojiHeader = data.total_transaksi > 0 ? '💰' : 'ℹ️';\nconst statusOmzet = data.total_omzet_raw > 1000000 ? '🚀 Performa Mantap!' : '📈 Terus Semangat!';\n\nconst pesan = `\n${emojiHeader} <b>LAPORAN PENJUALAN</b> ${emojiHeader}\n━━━━━━━━━━━━━━━━━━\n📅 <b>Tanggal:</b> <code>${data.tanggal}</code>\n📊 <b>Status:</b> ${statusOmzet}\n\n💵 <b>FINANSIAL</b>\n• Total Omzet: <b>${data.total_omzet_formatted}</b>\n• Total Transaksi: <b>${data.total_transaksi} Item</b>\n\n🏆 <b>PRODUK TERLARIS</b>\n• ${data.produk_terlaris}\n\n${data.status_stok} <b>INVENTORI</b>\n• ${data.stok_menipis}\n━━━━━━━━━━━━━━━━━━\n<i>Otomasi by <a href=\"https://axiamasi.com\">axiamasi.com</a></i>\n`;\n\nreturn { teks_laporan: pesan };"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1120,
+                304
+            ],
+            "id": "642c1c68-a230-46cf-8ad7-b2b12e6c0930",
+            "name": "[FORMAT] Render Pesan HTML"
+        },
+        {
+            "parameters": {
+                "content": "# 📊 Axiamasi: Report Automation Starter\n> **Arsitek Sistem Otomasi Bisnis Indonesia** - [axiamasi.com](https://axiamasi.com)\n\nWorkflow ini mengotomasi laporan bisnis harian dari **Google Sheets** ke **Telegram**.\n\n### 📋 1. TEMPLATE DATABASE (PENTING)\nSalin struktur database wajib di bawah ini:\n👉 **[LINK TEMPLATE GOOGLE SHEETS](https://docs.google.com/spreadsheets/d/19Db3M7nJTBTU3hzqjUJiW4XFyhHARn0ZhL8CwIV310c/edit?usp=sharing)**\n*(Klik File > Make a Copy)*\n\n### ⚙️ 2. CARA SETUP (QUICK START)\n1. **Kredensial:** Hubungkan node `[DATA]` ke Google Sheets & node `[OUT]` ke Telegram Bot Anda.\n2. **ID Spreadsheet:** Masukkan ID dari spreadsheet hasil copy Anda ke node `[DATA]`.\n3. **Chat ID:** Masukkan ID Telegram tujuan di node `[OUT]`.\n4. **Timezone:** Pastikan Settings Workflow sudah di-set ke **Asia/Jakarta**.\n\n### 🧠 3. LOGIKA KERJA\n- **Trigger:** Otomatis jam 20:00 (Harian).\n- **Processing:** Script menghitung omzet, produk terlaris, dan stok kritis secara real-time.\n- **Output:** Pesan format HTML dikirim ke Telegram.\n\n### ⚠️ 4. CATATAN EXPERT\n- **Format Tanggal:** Gunakan `YYYY-MM-DD` (Contoh: 2026-01-08).\n- **Karakter Khusus:** Hindari penggunaan karakter `< >` pada nama produk agar tidak terjadi error pada HTML Telegram.\n\n---\n**Butuh Bantuan Lebih Lanjut?**\nKunjungi [axiamasi.com](https://axiamasi.com)",
+                "height": 688,
+                "width": 704,
+                "color": 5
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                -752,
+                16
+            ],
+            "typeVersion": 1,
+            "id": "8426aa6f-7074-4ea7-b631-f3ccb2d40fd2",
+            "name": "Sticky Note2"
+        }
+    ],
+    "connections": {
+        "[TRG] Harian (20:00)": {
+            "main": [
+                [
+                    {
+                        "node": "[PREP] Set Tanggal Laporan",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "[DATA] Tarik Transaksi Sheets": {
+            "main": [
+                [
+                    {
+                        "node": "[DATA] Tarik Master Stok",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "[DATA] Tarik Master Stok": {
+            "main": [
+                [
+                    {
+                        "node": "[LOGIC] Kalkulasi Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "[PREP] Set Tanggal Laporan": {
+            "main": [
+                [
+                    {
+                        "node": "[DATA] Tarik Transaksi Sheets",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "[LOGIC] Kalkulasi Data": {
+            "main": [
+                [
+                    {
+                        "node": "[FORMAT] Render Pesan HTML",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "[FORMAT] Render Pesan HTML": {
+            "main": [
+                [
+                    {
+                        "node": "[OUT] Kirim Telegram",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "placeholder_instance_id"
+    }
+}
